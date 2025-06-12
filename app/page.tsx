@@ -148,7 +148,7 @@ export default function HomePage() {
   const [email, setEmail] = useState("");
 
   useEffect(() => {
-    fetch("/api/courses")
+    fetch("/api/courses/published")
       .then((res) => res.json())
       .then((data) => {
         const enhancedCourses = (data.courses || []).map((course: any, index: number) => ({

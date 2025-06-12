@@ -30,12 +30,11 @@ export default function AllCoursesPage() {
     const fetchCourses = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("/api/courses");
+        const response = await fetch("/api/courses/published"); // Updated to fetch only published courses
         if (!response.ok) {
           throw new Error("Failed to fetch courses");
         }
         const data = await response.json();
-        // Add mock data for missing fields
         const enhancedCourses = data.courses.map((course: Course) => ({
           ...course,
           rating: course.rating || (Math.random() * 2 + 3).toFixed(1),

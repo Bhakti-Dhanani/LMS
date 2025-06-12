@@ -7,9 +7,8 @@ import { prisma } from "@/lib/prisma";
 declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
-      id: string;
-      role?: string;
-      accessToken?: string; // Add accessToken to session user
+      id: number;
+      role: string; // Ensure role is a string
     } & DefaultSession["user"];
     expires: string;
   }
@@ -21,8 +20,9 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id?: string;
+    id?: number;
     role?: string;
+    accessToken?: string;
   }
 }
 
@@ -65,11 +65,11 @@ export const authOptions: NextAuthOptions = {
         }
 
         return {
-          id: user.id,
+          id: user.id, // Ensure id is a number
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role,
+          role: user.role || "user", // Provide fallback for role
         };
       },
     }),
@@ -77,25 +77,24 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (account) {
-        token.accessToken = account.access_token || "new-token-generated"; // Generate new token
+        token.accessToken = account.access_token || "new-token-generated";
       }
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
+        token.id = typeof user.id === "string" ? parseInt(user.id, 10) : user.id; // Cast id to number
+        token.role = user.role || "user"; // Provide fallback for role
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.accessToken = token.accessToken as string; // Pass new token to session
+        session.user.id = token.id as number;
+        session.user.role = token.role || "user"; // Provide fallback for role
       }
       return session;
     },
     async signIn({ user, account, profile }) {
       const token = account?.access_token || "";
-      return true; // Return a boolean value as required by the type
+      return true;
     },
   },
 };

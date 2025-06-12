@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "../../../lib/prisma";
+import { prisma } from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
 
 const secret = process.env.NEXTAUTH_SECRET || "default_secret";
@@ -51,11 +51,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
     }
 
-    if (token.role !== "Instructor" && token.role !== "Admin") {
+    if (token.role !== "INSTRUCTOR" && token.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { title, description, thumbnail } = await req.json();
+    const { title, description, thumbnail, price, published} = await req.json();
 
     if (!title || !description || !thumbnail) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -66,7 +66,10 @@ export async function POST(req: NextRequest) {
         title,
         description,
         thumbnail,
+        price,
+        published,
         instructorId: token.id, // Pass instructorId as an integer
+        creatorId: token.id, // Added creatorId to match CourseUncheckedCreateInput
       },
     });
 

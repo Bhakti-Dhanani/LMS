@@ -1,73 +1,43 @@
 import { NextResponse } from "next/server";
-import { hash } from "bcrypt";
-import { prisma } from "@/lib/prisma";
-import { z } from "zod";
+import {prisma} from "../../../../lib/prisma";
+import bcrypt from "bcrypt";
 
-// Validation schema for registration
-const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["STUDENT", "INSTRUCTOR"]),
-});
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    
-    // Validate request data
-    const result = registerSchema.safeParse(body);
-    
-    if (!result.success) {
-      return NextResponse.json(
-        { error: "Invalid data", issues: result.error.issues },
-        { status: 400 }
-      );
+    const { email, password, name, role } = await request.json();
+
+    if (!email || !password || !name || !role) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
-    
-    const { name, email, password, role } = result.data;
-    
-    // Check if user with email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-    
+
+    const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+
+    if (!["STUDENT", "INSTRUCTOR"].includes(normalizedRole)) {
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return NextResponse.json(
-        { error: "User with this email already exists" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Email already exists" }, { status: 400 });
     }
-    
-    // Hash password
-    const hashedPassword = await hash(password, 12);
-    
-    // Create new user
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await prisma.user.create({
       data: {
-        name,
         email,
         password: hashedPassword,
-        role,
+        name,
+        role: normalizedRole,
       },
     });
-    
-    // Return user without password
-    const { password: _, ...userWithoutPassword } = user;
-    
-    return NextResponse.json(
-      {
-        message: "User registered successfully",
-        user: userWithoutPassword,
-      },
-      { status: 201 }
-    );
-    
+
+    return NextResponse.json({ message: "User registered successfully", user }, { status: 200 });
   } catch (error) {
+    if ((error as any)?.code === 'P2002') {
+      return NextResponse.json({ error: "A unique constraint violation occurred." }, { status: 400 });
+    }
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "An error occurred during registration" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to register user" }, { status: 500 });
   }
 }
